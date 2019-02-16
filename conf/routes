@@ -1,0 +1,10 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# https://www.playframework.com/documentation/latest/ScalaRouting
+# ~~~~
+
+POST   /v1/images/upload            com.example.controllers.ImageUploadController.upload
+
+GET    /v1/images/upload/:jobId     com.example.controllers.ImageUploadController.getJobInfo(jobId)
+
+GET    /v1/images/                  com.example.controllers.ImageUploadController.getUploadedImageLinks
