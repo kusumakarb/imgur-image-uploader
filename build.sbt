@@ -11,14 +11,14 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala)
 scalaVersion := "2.12.8"
 
 // sbt-scapegoat
-scapegoatVersion.in(ThisBuild) := "1.3.8"
-scapegoatIgnoredFiles := Seq(".*/routes")
-
-// sbt-scoverage
-coverageHighlighting := true
-coverageEnabled := true
-
-coverageEnabled.in(Test, test) := true
+//scapegoatVersion.in(ThisBuild) := "1.3.8"
+//scapegoatIgnoredFiles := Seq(".*/routes")
+//
+//// sbt-scoverage
+//coverageHighlighting := true
+//coverageEnabled := true
+//
+//coverageEnabled.in(Test, test) := true
 
 resolvers +=
   "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
