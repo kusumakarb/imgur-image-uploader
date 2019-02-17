@@ -34,10 +34,18 @@ libraryDependencies ++= Seq(
   Library.Ficus,
   Library.PlayCirce,
   Library.ScalaTestPlus,
-  Library.Sttp,
-  Library.AkkaHTTP,
-  Library.AkkaStreams,
+  Library.PlayWSMock,
   Library.Logging
 ) ++ Library.Circe
 
-addCommandAlias("format", ";scalafmt;scalastyle;scapegoat")
+enablePlugins(JavaAppPackaging)
+enablePlugins(DockerPlugin)
+
+dockerBaseImage := "openjdk:jre"
+
+// Work around https://stackoverflow.com/a/29244028/3856808
+javaOptions in Universal ++= Seq(
+  "-Dpidfile.path=/dev/null"
+)
+
+dockerExposedPorts ++= Seq(9000, 9443)

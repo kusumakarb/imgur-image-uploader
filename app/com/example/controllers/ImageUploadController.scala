@@ -1,9 +1,8 @@
 package com.example.controllers
 
 import com.example.exceptions.JobNotFoundException
-import com.example.models.APIResponses.{ InvalidURLs, JobNotFound }
 import com.example.models.Types.JobId
-import com.example.models.Upload
+import com.example.models.{ InvalidURLs, JobNotFound, Upload }
 import com.example.models.Upload._
 import com.example.services.ImageUploadService
 import io.circe.generic.auto._

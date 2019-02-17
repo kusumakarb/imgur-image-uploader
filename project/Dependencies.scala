@@ -26,6 +26,12 @@ object Library {
   // Scala-friendly companion to Typesafe config
   final val Ficus = "com.iheart" %% "ficus" % "1.4.4"
 
+  // https://github.com/krzemin/octopus
+  // Scala library for boilerplate-free validation
+  final val Octopus = "com.github.krzemin" %% "octopus" % "0.3.3"
+
+  final val CommonsValidator = "commons-validator" % "commons-validator" % "1.6"
+
   // https://github.com/codingwell/scala-guice
   // Scala extensions for Google Guice
   // Updating this might fail runtime DI. Test after upgrading.
@@ -56,19 +62,7 @@ object Library {
     */
   // https://github.com/scalatest/scalatest
   // A testing tool for Scala and Java developers
-//  final val ScalaTest = "org.scalatest" %% "scalatest" % "3.0.5" % Test
-
   final val ScalaTestPlus = "org.scalatestplus.play" %% "scalatestplus-play" % "4.0.1" % Test
 
-  final val Sttp        = "com.softwaremill.sttp" %% "core"              % "1.5.9"
-  final val AkkaHTTP    = "com.softwaremill.sttp" %% "akka-http-backend" % "1.5.9"
-  final val AkkaStreams = "com.typesafe.akka"     %% "akka-stream"       % "2.5.11"
-
-//  final val PlayWS = "com.typesafe.play" %% "play-ahc-ws-standalone" % "2.0.1"
-
-  // https://github.com/krzemin/octopus
-  // Scala library for boilerplate-free validation
-  final val Octopus = "com.github.krzemin" %% "octopus" % "0.3.3"
-
-  final val CommonsValidator = "commons-validator" % "commons-validator" % "1.6"
+  final val PlayWSMock = "de.leanovate.play-mockws" %% "play-mockws" % "2.7.0" % Test
 }

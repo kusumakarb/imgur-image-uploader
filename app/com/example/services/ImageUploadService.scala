@@ -12,7 +12,6 @@ import com.example.exceptions.{
   InvalidResponseException,
   JobNotFoundException
 }
-import com.example.models.APIResponses.{ ImgurUploadedURLs, JobInfo => JobInfoResponse, Upload => UploadResponse }
 import com.example.models.Types.{ JobId, URL }
 import com.example.models._
 import com.google.inject.Inject
@@ -140,7 +139,7 @@ final class ImageUploadService @Inject()(
     * @return API Response of the Imgur upload
     */
   private def downloadAndUpload(url: URL, jobId: JobId): Future[WSResponse] =
-    // TODO: Retries, timeout
+    // TODO: Retries, timeout, gzip encode
     for {
       downloadedFileResponse <- downloadFile(url, jobId)
       _                      <- Future.fromTry(validateResponse(downloadedFileResponse, url))
