@@ -6,7 +6,12 @@ import java.util.UUID
 import akka.Done
 import akka.actor.ActorSystem
 import akka.util.ByteString
-import com.example.exceptions.{ FileLengthExceededException, InvalidMimeTypeException, JobNotFoundException }
+import com.example.exceptions.{
+  FileLengthExceededException,
+  InvalidMimeTypeException,
+  InvalidResponseException,
+  JobNotFoundException
+}
 import com.example.models.APIResponses.{ ImgurUploadedURLs, JobInfo => JobInfoResponse, Upload => UploadResponse }
 import com.example.models.Types.{ JobId, URL }
 import com.example.models._
@@ -134,21 +139,43 @@ final class ImageUploadService @Inject()(
     * @param jobId Job Id of the upload job
     * @return API Response of the Imgur upload
     */
-  private def downloadAndUpload(url: URL, jobId: JobId): Future[WSResponse] = {
+  private def downloadAndUpload(url: URL, jobId: JobId): Future[WSResponse] =
+    // TODO: Retries, timeout
+    for {
+      downloadedFileResponse <- downloadFile(url, jobId)
+      _                      <- Future.fromTry(validateResponse(downloadedFileResponse, url))
+      imgurAPIResponse       <- uploadFile(url, jobId, downloadedFileResponse.bodyAsBytes)
+    } yield imgurAPIResponse
 
+  /**
+    * Downloads the file from the given URL
+    *
+    * @param url URL where the file is expected to be
+    * @param jobId Id of the Job
+    * @return Response with file content
+    */
+  private def downloadFile(url: URL, jobId: JobId): Future[WSResponse] =
+    ws.url(url)
+      .addHttpHeaders(("Accept", "image/*"))
+      .get()
+      .recoverWith(downloadAndUploadErrorHandler(jobId, url, "Download"))
+
+  /**
+    * Uploads the file to Imgur
+    *
+    * @param url URL from which the file is downloaded (used for error handling)
+    * @param jobId Id of the job
+    * @param downloadedFile Downloaded file content
+    * @return Response from the Imgur API
+    */
+  private def uploadFile(url: URL, jobId: JobId, downloadedFile: ByteString): Future[WSResponse] = {
     val clientID  = configuration.underlying.getString("imgur.clientID")
     val uploadURL = configuration.underlying.getString("imgur.uploadURL")
-
-    // TODO: Retries and timeout
-    for {
-      downloadedFileResponse <- ws.url(url).get().recoverWith(downloadAndUploadErrorHandler(jobId, url, "Download"))
-      downloadedFile         <- Future.fromTry(getByteString(downloadedFileResponse, url))
-      imgurAPIResponse <- ws
-        .url(uploadURL)
-        .addHttpHeaders("Authorization" -> s"Client-ID $clientID")
-        .post(downloadedFile)
-        .recoverWith(downloadAndUploadErrorHandler(jobId, url, "Upload"))
-    } yield imgurAPIResponse
+    ws.url(uploadURL)
+      .addHttpHeaders("Authorization" -> s"Client-ID $clientID")
+      .withFollowRedirects(true)
+      .post(downloadedFile)
+      .recoverWith(downloadAndUploadErrorHandler(jobId, url, "Upload"))
   }
 
   /**
@@ -164,7 +191,7 @@ final class ImageUploadService @Inject()(
                                             action: String): PartialFunction[Throwable, Future[WSResponse]] = {
     case NonFatal(e) =>
       cacheService.updateURLStatus(jobId, url, UploadStatus.Failed, None)
-      logger.error(s"$action of $url failed")
+      logger.error(s"$url $action request failed with error ${e.getMessage}")
       Future.failed[WSResponse](e)
   }
 
@@ -175,36 +202,30 @@ final class ImageUploadService @Inject()(
     * @param url URL from which the data is downloaded
     * @return ByteString data
     */
-  private def getByteString(downloadedFile: WSResponse, url: URL): Try[ByteString] = {
-    val isValidMimeType         = validateMimeType(downloadedFile)
-    val fileAsBytes: ByteString = downloadedFile.bodyAsBytes
-    val fileLengthInBytes       = fileAsBytes.length
-    val maxFileSizeInBytes      = configuration.underlying.getLong("imgur.maxFileSizeInBytes")
-    val isValidContentLength    = fileLengthInBytes < maxFileSizeInBytes
-    if (isValidMimeType && isValidContentLength) {
-      Success[ByteString](fileAsBytes)
-    } else {
-      if (!isValidMimeType) {
+  private def validateResponse(downloadedFile: WSResponse, url: URL): Try[ByteString] = {
+    val fileAsBytes        = downloadedFile.bodyAsBytes
+    val fileLengthInBytes  = fileAsBytes.length
+    val maxFileSizeInBytes = configuration.underlying.getLong("imgur.maxFileSizeInBytes")
+    val statusCode         = downloadedFile.status
+    val validations = Validations(
+      isValidStatusCode = Validations.successStatusCodes.contains(statusCode),
+      isValidMimeType = Validations.listOfImageMimeTypes.contains(downloadedFile.contentType),
+      isValidContentLength = fileLengthInBytes < maxFileSizeInBytes
+    )
+
+    validations match {
+      case Validations(false, _, _) =>
+        logger.error(s"$url failed with status code $statusCode: ${downloadedFile.statusText}")
+        Failure[ByteString](
+          InvalidResponseException(s"The server returned a $statusCode: ${downloadedFile.statusText}"))
+      case Validations(_, false, _) =>
         logger.error(s"$url is not a valid Image. Content-Type: ${downloadedFile.contentType}")
         Failure[ByteString](InvalidMimeTypeException(s"$url is not a valid Image"))
-      } else {
+      case Validations(_, _, false) =>
         logger.error(s"$url file length $fileLengthInBytes Bytes exceeds the allowed size of $maxFileSizeInBytes Bytes")
         Failure[ByteString](FileLengthExceededException("File size exceeded the allowed size"))
-      }
-
+      case _ =>
+        Success[ByteString](fileAsBytes)
     }
-  }
-
-  /**
-    * Validates if the obtained response has the Image mime type.
-    *
-    * @param downloadedFile Downloaded data from the URL
-    * @return True if the mime type is of Image, False otherwise
-    */
-  private def validateMimeType(downloadedFile: WSResponse): Boolean = {
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types#Image_types
-    val listOfImageMimeTypes =
-      List("image/jpeg", "image/gif", "image/png", "image/svg+xml", "image/x-icon", "image/vnd.microsoft.icon")
-    listOfImageMimeTypes.contains(downloadedFile.contentType)
   }
 }

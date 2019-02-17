@@ -1,5 +1,6 @@
 package com.example.models
 
+import enumeratum.EnumEntry.Lowercase
 import enumeratum._
 
 sealed trait JobStatus extends EnumEntry
@@ -12,11 +13,11 @@ object JobStatus extends Enum[JobStatus] with CirceEnum[JobStatus] {
     */
   val values = findValues
 
-  case object Pending extends JobStatus
+  case object Pending extends JobStatus with Lowercase
 
   case object InProgress extends JobStatus with InProgressMixin
 
-  case object Complete extends JobStatus
+  case object Complete extends JobStatus with Lowercase
 
   trait InProgressMixin extends EnumEntry {
     override def entryName: String = stableEntryName
